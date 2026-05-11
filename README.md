@@ -1,3 +1,4 @@
+<img src="logo.svg" alt="mcp-studio logo" width="280">
 # mcp-studio
 
 > Visual builder for Model Context Protocol (MCP) servers. Define tools, auto-generate Python and TypeScript boilerplate, deploy in minutes.
