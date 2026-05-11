@@ -7,7 +7,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Open Source](https://img.shields.io/badge/Open%20Source-yes-brightgreen)](https://github.com/Fefefrost5/mcp-studio)
 
-![mcp-studio screenshot](docs/screenshot.png)
 
 ## What is MCP?
 
