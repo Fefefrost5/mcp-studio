@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mcp-studio — Visual MCP Server Builder</title>
+<meta name="description" content="Build Model Context Protocol servers visually. Auto-generate Python and TypeScript boilerplate for your MCP tools.">
+<meta property="og:title" content="mcp-studio — Visual MCP Server Builder">
+<meta property="og:description" content="Build MCP servers without writing boilerplate. Define tools visually, generate Python or TypeScript instantly.">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1117;
+  --bg2: #161b22;
+  --bg3: #1c2128;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #484f58;
+  --accent: #388bfd;
+  --accent-dim: rgba(56,139,253,0.15);
+  --accent-border: rgba(56,139,253,0.4);
+  --green: #3fb950;
+  --green-dim: rgba(63,185,80,0.12);
+  --amber: #d29922;
+  --amber-dim: rgba(210,153,34,0.12);
+  --red: #f85149;
+  --red-dim: rgba(248,81,73,0.12);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Layout ── */
+.shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo-mark {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, #388bfd, #8b5cf6);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: #fff;
+  font-family: var(--mono);
+}
+
+.logo-name { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -.3px; }
+.logo-ver { font-size: 11px; color: var(--text3); margin-top: 1px; font-family: var(--mono); }
+
+.sidebar-nav { padding: 12px 8px; flex: 1; }
+.nav-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); padding: 4px 8px 6px; font-weight: 600; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  transition: all .15s;
+  border: none; background: none; width: 100%; text-align: left;
+}
+.nav-item:hover { background: rgba(255,255,255,.05); color: var(--text); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+.nav-item .step-num { 
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--bg3); border: 1px solid var(--border2);
+  font-size: 10px; font-weight: 700; font-family: var(--mono);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  color: var(--text2);
+}
+.nav-item.active .step-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+.nav-item.done .step-num { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+.sidebar-stats {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.stat-label { color: var(--text3); }
+.stat-val { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* ── Main ── */
+.main { padding: 32px 40px; max-width: 760px; }
+.pane { display: none; }
+.pane.active { display: block; }
+
+.pane-title { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 4px; letter-spacing: -.3px; }
+.pane-sub { font-size: 14px; color: var(--text2); margin-bottom: 28px; }
+
+/* ── Form ── */
+.field { margin-bottom: 18px; }
+.field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-weight: 500; letter-spacing: .02em; }
+.field input, .field textarea, .field select {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text);
+  font-family: var(--sans);
+  outline: none;
+  transition: border-color .15s;
+}
+.field input:focus, .field textarea:focus { border-color: var(--accent); }
+.field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+.field select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all .15s; font-family: var(--sans); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { opacity: .85; }
+.btn-secondary { background: transparent; color: var(--text2); border-color: var(--border2); }
+.btn-secondary:hover { background: rgba(255,255,255,.06); color: var(--text); }
+.btn-danger { background: transparent; color: var(--red); border-color: rgba(248,81,73,.3); }
+.btn-danger:hover { background: var(--red-dim); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-icon { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer; color: var(--text2); font-size: 13px; transition: all .15s; }
+.btn-icon:hover { background: rgba(255,255,255,.07); color: var(--text); }
+.btn-icon.del:hover { color: var(--red); border-color: rgba(248,81,73,.3); background: var(--red-dim); }
+.btn-row { display: flex; gap: 8px; align-items: center; margin-top: 20px; }
+
+/* ── Tool cards ── */
+.tool-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.tool-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.tool-card:hover { border-color: var(--border2); }
+.tool-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; cursor: pointer;
+}
+.tool-name { font-size: 14px; font-weight: 600; font-family: var(--mono); color: var(--text); }
+.tool-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.tool-badge {
+  display: inline-block; font-size: 11px; font-family: var(--mono);
+  padding: 2px 7px; border-radius: 4px; margin-left: 8px;
+  background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border);
+}
+.tool-actions { display: flex; gap: 6px; }
+.tool-body { border-top: 1px solid var(--border); padding: 14px 16px; }
+.param-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 5px; font-size: 12px; font-family: var(--mono); background: var(--bg3); border: 1px solid var(--border); color: var(--text); margin: 3px; }
+.param-tag .type { color: var(--accent); }
+.param-tag .req-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+.param-tag .opt-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); }
+
+/* ── Add form ── */
+.add-form {
+  background: var(--bg2);
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 14px;
+  display: none;
+}
+.add-form.visible { display: block; }
+.add-form-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.param-rows { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.param-row-item { display: grid; grid-template-columns: 1fr 90px 1.5fr auto; gap: 8px; align-items: center; }
+.param-row-item input, .param-row-item select {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 8px; font-size: 12px; color: var(--text); font-family: var(--mono);
+  outline: none;
+}
+.param-row-item input:focus { border-color: var(--accent); }
+.req-toggle { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.req-box { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border2); background: var(--bg3); display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.req-box.on { background: var(--green-dim); border-color: var(--green); }
+.req-box.on::after { content: '✓'; font-size: 10px; color: var(--green); }
+.req-label { font-size: 11px; color: var(--text3); }
+.remove-param { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; padding: 0 4px; line-height: 1; }
+.remove-param:hover { color: var(--red); }
+.add-param-btn { background: none; border: 1px dashed var(--border); border-radius: 6px; padding: 5px 12px; font-size: 12px; color: var(--text2); cursor: pointer; font-family: var(--sans); }
+.add-param-btn:hover { border-color: var(--border2); color: var(--text); }
+.param-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.section-title { font-size: 12px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+
+/* ── Add button ── */
+.add-tool-btn {
+  width: 100%; padding: 10px; background: none;
+  border: 1px dashed var(--border); border-radius: var(--radius-lg);
+  color: var(--text2); font-size: 13px; cursor: pointer; font-family: var(--sans);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all .15s;
+}
+.add-tool-btn:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-dim); }
+
+/* ── Code viewer ── */
+.code-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 0; gap: 0; }
+.code-tab-btn {
+  padding: 8px 16px; font-size: 12px; font-family: var(--mono);
+  cursor: pointer; color: var(--text2); border: none; background: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all .15s;
+}
+.code-tab-btn:hover { color: var(--text); }
+.code-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.code-panel { display: none; }
+.code-panel.active { display: block; }
+.code-wrap { border: 1px solid var(--border); border-radius: 0 0 var(--radius-lg) var(--radius-lg); overflow: hidden; }
+.code-top { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; background: var(--bg3); border-bottom: 1px solid var(--border); }
+.code-fn { font-size: 12px; color: var(--text3); font-family: var(--mono); }
+.copy-btn { background: none; border: 1px solid var(--border); border-radius: 5px; padding: 3px 10px; font-size: 11px; cursor: pointer; color: var(--text2); font-family: var(--mono); transition: all .15s; }
+.copy-btn:hover { background: rgba(255,255,255,.07); color: var(--text); }
+.copy-btn.ok { color: var(--green); border-color: rgba(63,185,80,.4); background: var(--green-dim); }
+pre.code {
+  background: var(--bg);
+  padding: 18px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  overflow-x: auto;
+  color: var(--text);
+  font-family: var(--mono);
+  white-space: pre;
+  margin: 0;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+/* ── Misc ── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+.badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; font-family: var(--mono); }
+.badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+.badge-blue { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+.badge-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(210,153,34,.3); }
+.empty-state { text-align: center; padding: 32px; color: var(--text3); font-size: 13px; }
+.empty-state svg { margin-bottom: 12px; opacity: .3; }
+.hint { font-size: 12px; color: var(--text3); margin-top: 6px; }
+.warn { background: var(--amber-dim); border: 1px solid rgba(210,153,34,.3); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; color: var(--amber); margin-bottom: 16px; }
+.success-bar { background: var(--green-dim); border: 1px solid rgba(63,185,80,.3); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; color: var(--green); margin-bottom: 20px; }
+.roadmap-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.roadmap-item:last-child { border: none; }
+.roadmap-icon { width: 28px; height: 28px; border-radius: 6px; background: var(--bg3); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; }
+.roadmap-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.roadmap-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.roadmap-badge { font-size: 10px; margin-left: 6px; padding: 1px 6px; border-radius: 3px; }
+
+@media (max-width: 640px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { display: flex; flex-direction: row; height: auto; position: static; flex-wrap: wrap; padding: 10px; border-right: none; border-bottom: 1px solid var(--border); }
+  .sidebar-logo { border: none; padding: 0; margin-right: auto; }
+  .sidebar-nav { display: flex; gap: 4px; padding: 0; flex: 1; }
+  .nav-label, .sidebar-stats { display: none; }
+  .main { padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">M</div>
+      <div>
+        <div class="logo-name">mcp-studio</div>
+        <div class="logo-ver">v0.1.0</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Build</div>
+      <button class="nav-item active" id="nav-server" onclick="switchTab('server')">
+        <span class="step-num" id="sn-server">1</span> Server config
+      </button>
+      <button class="nav-item" id="nav-tools" onclick="switchTab('tools')">
+        <span class="step-num" id="sn-tools">2</span> Tools
+        <span id="tool-badge" style="margin-left:auto;font-size:10px;background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:3px;font-family:var(--mono)"></span>
+      </button>
+      <button class="nav-item" id="nav-generate" onclick="switchTab('generate')">
+        <span class="step-num" id="sn-generate">3</span> Generate
+      </button>
+      <div class="nav-label" style="margin-top:16px">Info</div>
+      <button class="nav-item" id="nav-about" onclick="switchTab('about')">
+        <span class="step-num">?</span> About
+      </button>
+    </nav>
+    <div class="sidebar-stats">
+      <div class="stat-row">
+        <span class="stat-label">Tools</span>
+        <span class="stat-val" id="stat-tools">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Params</span>
+        <span class="stat-val" id="stat-params">0</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- Pane: Server -->
+    <div id="pane-server" class="pane active">
+      <div class="pane-title">Server configuration</div>
+      <div class="pane-sub">Basic info about your MCP server.</div>
+      <div class="field">
+        <label for="srv-name">Server name</label>
+        <input type="text" id="srv-name" value="my-mcp-server" placeholder="e.g. weather-tools" oninput="saveServer()">
+        <div class="hint">Lowercase with hyphens. Appears in Claude Desktop config.</div>
+      </div>
+      <div class="field">
+        <label for="srv-desc">Description</label>
+        <textarea id="srv-desc" placeholder="What does this server do?" oninput="saveServer()">A collection of tools built with mcp-studio.</textarea>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="srv-version">Version</label>
+          <input type="text" id="srv-version" value="0.1.0" oninput="saveServer()">
+        </div>
+        <div class="field">
+          <label for="srv-author">Author</label>
+          <input type="text" id="srv-author" placeholder="your-handle" oninput="saveServer()">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="switchTab('tools')">Next: Add Tools →</button>
+      </div>
+    </div>
+
+    <!-- Pane: Tools -->
+    <div id="pane-tools" class="pane">
+      <div class="pane-title">Tools</div>
+      <div class="pane-sub">Define the functions your server exposes to AI models.</div>
+
+      <div id="tool-list"></div>
+
+      <div class="add-form" id="add-form">
+        <div class="add-form-title" id="add-form-title">New tool</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Tool name (snake_case)</label>
+            <input type="text" id="new-name" placeholder="get_weather" style="font-family:var(--mono)">
+          </div>
+          <div class="field">
+            <label>Return type</label>
+            <select id="new-returns">
+              <option>str</option><option>int</option><option>float</option><option>bool</option><option>dict</option><option>list</option><option>None</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Description (the AI reads this)</label>
+          <input type="text" id="new-desc" placeholder="Gets the current weather for a given city.">
+        </div>
+        <hr class="divider" style="margin:14px 0">
+        <div class="param-section-head">
+          <div class="section-title">Parameters</div>
+          <button class="add-param-btn" onclick="addParam()">+ Add parameter</button>
+        </div>
+        <div class="param-rows" id="param-rows">
+          <div style="font-size:12px;color:var(--text3);text-align:center;padding:8px 0">No parameters — click "Add parameter"</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveTool()">Save tool</button>
+          <button class="btn btn-secondary" onclick="cancelForm()">Cancel</button>
+        </div>
+      </div>
+
+      <button class="add-tool-btn" id="add-tool-btn" onclick="showAddForm()">
+        + Add a tool
+      </button>
+
+      <div class="btn-row" style="margin-top:24px">
+        <button class="btn btn-primary" onclick="switchTab('generate')">Next: Generate Code →</button>
+      </div>
+    </div>
+
+    <!-- Pane: Generate -->
+    <div id="pane-generate" class="pane">
+      <div class="pane-title">Generated output</div>
+      <div class="pane-sub">Copy these files into your project.</div>
+
+      <div id="gen-warn" class="warn" style="display:none">
+        ⚠ No tools defined. <a href="#" onclick="switchTab('tools');return false" style="color:inherit">Add at least one tool</a> first.
+      </div>
+      <div id="gen-ok" class="success-bar" style="display:none"></div>
+
+      <div class="code-tabs" id="code-tabs">
+        <button class="code-tab-btn active" onclick="switchCode('py', this)">server.py</button>
+        <button class="code-tab-btn" onclick="switchCode('ts', this)">server.ts</button>
+        <button class="code-tab-btn" onclick="switchCode('readme', this)">README.md</button>
+        <button class="code-tab-btn" onclick="switchCode('req', this)">requirements.txt</button>
+        <button class="code-tab-btn" onclick="switchCode('pkg', this)">package.json</button>
+        <button class="code-tab-btn" onclick="switchCode('claude', this)">claude_config</button>
+      </div>
+      <div class="code-wrap">
+        <div class="code-top">
+          <span class="code-fn" id="code-fname">server.py</span>
+          <button class="copy-btn" id="copy-btn" onclick="copyCode()">Copy</button>
+        </div>
+        <pre class="code" id="code-output"></pre>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title" style="margin-bottom:14px">Next steps to ship on GitHub</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.9;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px">
+        <code style="color:var(--accent)">1.</code> Create a GitHub repo named <code id="repo-name-hint" style="color:var(--text)">my-mcp-server</code><br>
+        <code style="color:var(--accent)">2.</code> Copy generated files into the repo<br>
+        <code style="color:var(--accent)">3.</code> <code>git add . && git commit -m "feat: init via mcp-studio" && git push</code><br>
+        <code style="color:var(--accent)">4.</code> Add topics: <span class="badge badge-blue">mcp</span> <span class="badge badge-blue">model-context-protocol</span> <span class="badge badge-blue">llm-tools</span><br>
+        <code style="color:var(--accent)">5.</code> Submit to <a href="https://github.com/punkpeye/awesome-mcp-servers" target="_blank" style="color:var(--accent)">awesome-mcp-servers</a> (15k+ stars) → instant visibility<br>
+        <code style="color:var(--accent)">6.</code> Post on r/ClaudeAI, r/ChatGPT, X with #MCP #Anthropic
+      </div>
+    </div>
+
+    <!-- Pane: About -->
+    <div id="pane-about" class="pane">
+      <div class="pane-title">About mcp-studio</div>
+      <div class="pane-sub">Open source visual builder for MCP servers.</div>
+      <div class="success-bar">🎉 mcp-studio is free, open source, and runs entirely in your browser. No signup, no data sent anywhere.</div>
+      <div class="section-title" style="margin-bottom:12px">Roadmap</div>
+      <div class="roadmap-item">
+        <div class="roadmap-icon">🔧</div>
+        <div><div class="roadmap-title">Resources builder <span class="badge badge-green roadmap-badge">v0.2</span></div><div class="roadmap-desc">Visually define MCP Resources (URIs, content types, access patterns)</div></div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-icon">💬</div>
+        <div><div class="roadmap-title">Prompts builder <span class="badge badge-green roadmap-badge">v0.2</span></div><div class="roadmap-desc">Define reusable prompt templates exposed via MCP</div></div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-icon">🚀</div>
+        <div><div class="roadmap-title">One-click deploy <span class="badge badge-amber roadmap-badge">v0.3</span></div><div class="roadmap-desc">Push to Render, Railway, or Fly.io directly from the UI</div></div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-icon">📦</div>
+        <div><div class="roadmap-title">Template gallery <span class="badge badge-amber roadmap-badge">v0.3</span></div><div class="roadmap-desc">30+ ready-to-use server templates (web scraper, database, API wrapper...)</div></div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-icon">🧩</div>
+        <div><div class="roadmap-title">VS Code extension <span class="badge badge-amber roadmap-badge">v0.4</span></div><div class="roadmap-desc">Build and test MCP servers from inside VS Code</div></div>
+      </div>
+      <div class="roadmap-item" style="border:none">
+        <div class="roadmap-icon">💻</div>
+        <div><div class="roadmap-title">CLI: npx mcp-studio init <span class="badge badge-amber roadmap-badge">v0.4</span></div><div class="roadmap-desc">Scaffold from command line, import existing servers</div></div>
+      </div>
+      <hr class="divider">
+      <a href="https://github.com/YOUR_HANDLE/mcp-studio" target="_blank" class="btn btn-secondary">⭐ Star on GitHub</a>
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+let tools = [];
+let tempParams = [];
+let editIdx = null;
+let currentCode = 'py';
+
+function saveServer() {
+  const name = document.getElementById('srv-name').value;
+  document.getElementById('repo-name-hint').textContent = name || 'my-mcp-server';
+}
+
+function switchTab(name) {
+  ['server','tools','generate','about'].forEach(n => {
+    document.getElementById('pane-' + n).classList.toggle('active', n === name);
+    document.getElementById('nav-' + n).classList.toggle('active', n === name);
+  });
+  if (name === 'generate') renderGenerate();
+  if (name === 'tools') renderToolList();
+}
+
+function updateStats() {
+  const tc = tools.length;
+  const pc = tools.reduce((s, t) => s + t.params.length, 0);
+  document.getElementById('stat-tools').textContent = tc;
+  document.getElementById('stat-params').textContent = pc;
+  const badge = document.getElementById('tool-badge');
+  badge.textContent = tc > 0 ? tc : '';
+  badge.style.display = tc > 0 ? 'inline' : 'none';
+  const stepNums = { server: '1', tools: '2', generate: '3' };
+  if (tc > 0) {
+    document.getElementById('sn-tools').textContent = '✓';
+    document.getElementById('nav-tools').classList.add('done');
+  }
+}
+
+function renderToolList() {
+  const list = document.getElementById('tool-list');
+  updateStats();
+  if (!tools.length) {
+    list.innerHTML = `<div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>No tools yet. Add your first tool below.</div>`;
+    return;
+  }
+  list.innerHTML = tools.map((t, i) => `
+    <div class="tool-card">
+      <div class="tool-card-head" onclick="toggleBody(${i})" id="tc-head-${i}">
+        <div>
+          <div class="tool-name">${t.name}()<span class="tool-badge">→ ${t.returns}</span></div>
+          <div class="tool-desc">${t.desc || '—'}</div>
+        </div>
+        <div class="tool-actions" onclick="event.stopPropagation()">
+          <button class="btn-icon" onclick="editTool(${i})" title="Edit">✎</button>
+          <button class="btn-icon del" onclick="deleteTool(${i})" title="Delete">✕</button>
+        </div>
+      </div>
+      <div class="tool-body" id="tc-body-${i}" style="display:none">
+        ${t.params.length ? t.params.map(p => `<span class="param-tag"><span class="${p.required ? 'req-dot' : 'opt-dot'}"></span>${p.name}: <span class="type">${p.type}</span></span>`).join('') : '<span style="font-size:12px;color:var(--text3)">No parameters</span>'}
+        ${t.params.length ? `<div style="font-size:11px;color:var(--text3);margin-top:8px">${t.params.map(p => `<b style="color:var(--text2)">${p.name}</b>: ${p.desc || '—'}`).join(' · ')}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleBody(i) {
+  const body = document.getElementById('tc-body-' + i);
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+
+function showAddForm() {
+  document.getElementById('add-form').classList.add('visible');
+  document.getElementById('add-tool-btn').style.display = 'none';
+  document.getElementById('add-form-title').textContent = 'New tool';
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-desc').value = '';
+  document.getElementById('new-returns').value = 'str';
+  tempParams = [];
+  editIdx = null;
+  renderParams();
+}
+
+function cancelForm() {
+  document.getElementById('add-form').classList.remove('visible');
+  document.getElementById('add-tool-btn').style.display = 'flex';
+  editIdx = null;
+}
+
+function editTool(i) {
+  const t = tools[i];
+  editIdx = i;
+  document.getElementById('add-form').classList.add('visible');
+  document.getElementById('add-tool-btn').style.display = 'none';
+  document.getElementById('add-form-title').textContent = 'Edit tool';
+  document.getElementById('new-name').value = t.name;
+  document.getElementById('new-desc').value = t.desc;
+  document.getElementById('new-returns').value = t.returns;
+  tempParams = t.params.map(p => ({...p}));
+  renderParams();
+}
+
+function deleteTool(i) {
+  tools.splice(i, 1);
+  renderToolList();
+}
+
+function addParam() {
+  tempParams.push({ name: '', type: 'str', desc: '', required: true });
+  renderParams();
+}
+
+function renderParams() {
+  const el = document.getElementById('param-rows');
+  if (!tempParams.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px 0">No parameters — click "Add parameter"</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 90px 1.5fr auto;gap:8px;padding:0 0 4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">
+      <div>Name</div><div>Type</div><div>Description</div><div>Req.</div>
+    </div>
+    ${tempParams.map((p, i) => `
+    <div class="param-row-item">
+      <input type="text" value="${escH(p.name)}" placeholder="param_name" oninput="tempParams[${i}].name=this.value">
+      <select onchange="tempParams[${i}].type=this.value">
+        ${['str','int','float','bool','list','dict'].map(t=>`<option${t===p.type?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <input type="text" value="${escH(p.desc)}" placeholder="What it does" oninput="tempParams[${i}].desc=this.value">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="req-box ${p.required ? 'on' : ''}" id="rb-${i}" onclick="toggleReq(${i})" title="${p.required ? 'Required' : 'Optional'}"></div>
+        <button class="remove-param" onclick="removeParam(${i})">×</button>
+      </div>
+    </div>`).join('')}
+  `;
+}
+
+function toggleReq(i) {
+  tempParams[i].required = !tempParams[i].required;
+  renderParams();
+}
+
+function removeParam(i) {
+  tempParams.splice(i, 1);
+  renderParams();
+}
+
+function saveTool() {
+  const name = document.getElementById('new-name').value.trim()
+    .replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,'');
+  if (!name) { document.getElementById('new-name').focus(); return; }
+  const tool = {
+    name,
+    desc: document.getElementById('new-desc').value.trim(),
+    returns: document.getElementById('new-returns').value,
+    params: tempParams.filter(p => p.name.trim())
+  };
+  if (editIdx !== null) tools[editIdx] = tool;
+  else tools.push(tool);
+  cancelForm();
+  renderToolList();
+}
+
+function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// ── Code generation ──
+
+function srv() {
+  return {
+    name: document.getElementById('srv-name')?.value?.trim() || 'my-mcp-server',
+    desc: document.getElementById('srv-desc')?.value?.trim() || '',
+    version: document.getElementById('srv-version')?.value?.trim() || '0.1.0',
+    author: document.getElementById('srv-author')?.value?.trim() || '',
+  };
+}
+
+const pyTypes = { str:'str', int:'int', float:'float', bool:'bool', list:'list', dict:'dict', None:'None' };
+const tsTypes = { str:'z.string()', int:'z.number().int()', float:'z.number()', bool:'z.boolean()', list:'z.array(z.unknown())', dict:'z.record(z.string(), z.unknown())', None:'z.void()' };
+
+function genPy() {
+  const s = srv();
+  let c = `"""${s.name}\n${s.desc}\n"""\nfrom fastmcp import FastMCP\n\nmcp = FastMCP("${s.name}")\n\n`;
+  tools.forEach(t => {
+    const params = t.params;
+    const req = params.filter(p => p.required).map(p => `${p.name}: ${pyTypes[p.type]||'str'}`);
+    const opt = params.filter(p => !p.required).map(p => `${p.name}: ${pyTypes[p.type]||'str'} = None`);
+    const all = [...req, ...opt].join(', ');
+    c += `@mcp.tool()\ndef ${t.name}(${all}) -> ${pyTypes[t.returns]||'str'}:\n`;
+    c += `    """\n    ${t.desc || t.name}\n`;
+    if (params.length) {
+      c += `\n    Args:\n`;
+      params.forEach(p => { c += `        ${p.name} (${pyTypes[p.type]||'str'}): ${p.desc || '—'}${p.required ? '' : ' (optional)'}\n`; });
+      c += `\n    Returns:\n        ${pyTypes[t.returns]||'str'}: TODO describe return value\n`;
+    }
+    c += `    """\n    # TODO: implement\n    raise NotImplementedError("${t.name} not yet implemented")\n\n\n`;
+  });
+  if (!tools.length) c += '# Add tools in mcp-studio, then regenerate\n\n';
+  c += `if __name__ == "__main__":\n    mcp.run()\n`;
+  return c;
+}
+
+function genTs() {
+  const s = srv();
+  let c = `import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";\nimport { z } from "zod";\n\n`;
+  c += `const server = new McpServer({\n  name: "${s.name}",\n  version: "${s.version}",\n});\n\n`;
+  tools.forEach(t => {
+    c += `server.tool(\n  "${t.name.replace(/_/g,'-')}",\n  "${(t.desc||'').replace(/"/g,'\\"')}",\n`;
+    if (t.params.length) {
+      c += `  {\n`;
+      t.params.forEach(p => {
+        let z = tsTypes[p.type] || 'z.string()';
+        if (!p.required) z += '.optional()';
+        z += `.describe("${(p.desc||p.name).replace(/"/g,'\\"')}")`;
+        c += `    ${p.name}: ${z},\n`;
+      });
+      c += `  },\n`;
+    } else c += `  {},\n`;
+    const args = t.params.length ? '{ ' + t.params.map(p=>p.name).join(', ') + ' }' : '_args';
+    c += `  async (${args}) => {\n    // TODO: implement\n    throw new Error("${t.name} not implemented");\n  }\n);\n\n`;
+  });
+  if (!tools.length) c += '// Add tools in mcp-studio, then regenerate\n\n';
+  c += `server.run();\n`;
+  return c;
+}
+
+function genReadme() {
+  const s = srv();
+  let md = `# ${s.name}\n\n> ${s.desc}\n\n`;
+  md += `[![MCP](https://img.shields.io/badge/MCP-compatible-blue)](https://modelcontextprotocol.io) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)\n\n`;
+  md += `## Tools\n\n`;
+  if (tools.length) {
+    tools.forEach(t => {
+      md += `### \`${t.name}\`\n${t.desc || ''}\n\n`;
+      if (t.params.length) {
+        md += `| Parameter | Type | Required | Description |\n|---|---|---|---|\n`;
+        t.params.forEach(p => { md += `| \`${p.name}\` | \`${p.type}\` | ${p.required ? '✅' : '—'} | ${p.desc || '—'} |\n`; });
+        md += '\n';
+      }
+    });
+  } else md += '_No tools defined yet._\n\n';
+  md += `## Installation\n\n\`\`\`bash\npip install fastmcp\npython server.py\n\`\`\`\n\n`;
+  md += `## Claude Desktop config\n\n\`\`\`json\n{\n  "mcpServers": {\n    "${s.name}": {\n      "command": "python",\n      "args": ["/path/to/server.py"]\n    }\n  }\n}\n\`\`\`\n\n`;
+  if (s.author) md += `## Author\n\n${s.author}\n\n`;
+  md += `## License\n\nMIT\n`;
+  return md;
+}
+
+function genReq() { return `fastmcp>=0.1.0\n# Add your dependencies:\n`; }
+
+function genPkg() {
+  const s = srv();
+  return JSON.stringify({
+    name: s.name,
+    version: s.version,
+    description: s.desc,
+    main: "server.ts",
+    scripts: { start: "npx ts-node server.ts" },
+    dependencies: { "@modelcontextprotocol/sdk": "^1.0.0", zod: "^3.22.0" },
+    devDependencies: { "ts-node": "^10.9.0", typescript: "^5.0.0" }
+  }, null, 2);
+}
+
+function genClaude() {
+  const s = srv();
+  const obj = { mcpServers: {} };
+  obj.mcpServers[s.name] = { command: "python", args: ["/ABSOLUTE/PATH/TO/server.py"] };
+  return `// Save to: ~/Library/Application Support/Claude/claude_desktop_config.json\n// (macOS) or %APPDATA%\\Claude\\claude_desktop_config.json (Windows)\n\n${JSON.stringify(obj, null, 2)}`;
+}
+
+const codeGenerators = { py: genPy, ts: genTs, readme: genReadme, req: genReq, pkg: genPkg, claude: genClaude };
+const codeFilenames = { py: 'server.py', ts: 'server.ts', readme: 'README.md', req: 'requirements.txt', pkg: 'package.json', claude: 'claude_config.json' };
+
+function switchCode(type, btn) {
+  currentCode = type;
+  document.querySelectorAll('.code-tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('code-fname').textContent = codeFilenames[type];
+  document.getElementById('copy-btn').textContent = 'Copy';
+  document.getElementById('copy-btn').classList.remove('ok');
+  document.getElementById('code-output').textContent = (codeGenerators[type] || genPy)();
+}
+
+function renderGenerate() {
+  const s = srv();
+  document.getElementById('repo-name-hint').textContent = s.name;
+  const warn = document.getElementById('gen-warn');
+  const ok = document.getElementById('gen-ok');
+  if (!tools.length) {
+    warn.style.display = 'block';
+    ok.style.display = 'none';
+  } else {
+    warn.style.display = 'none';
+    ok.style.display = 'block';
+    const pc = tools.reduce((s,t) => s + t.params.length, 0);
+    ok.textContent = `✓ Ready — ${tools.length} tool${tools.length > 1 ? 's' : ''}, ${pc} parameter${pc !== 1 ? 's' : ''} defined`;
+  }
+  document.getElementById('code-output').textContent = (codeGenerators[currentCode] || genPy)();
+}
+
+function copyCode() {
+  const text = document.getElementById('code-output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Copied';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 2200);
+  });
+}
+
+// init
+saveServer();
+renderToolList();
+</script>
+</body>
+</html>
